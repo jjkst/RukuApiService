@@ -4,19 +4,27 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using RukuServiceApi.Models;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 namespace RukuServiceApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class EmailController(IOptions<EmailSettings> emailSettings) : ControllerBase
     {
         private readonly EmailSettings _emailSettings = emailSettings.Value;
 
         [HttpPost("send")]
+        [AllowAnonymous]
+        [EnableRateLimiting("EmailLimit")]
         public async Task<IActionResult> SendEmail([FromBody] Contact contact)
         {
+            if (string.IsNullOrWhiteSpace(contact.Email) || string.IsNullOrWhiteSpace(contact.Questions))
+            {
+                return BadRequest(new { message = "Email and question are required" });
+            }
+
             try
             {
                 var smtpServer = _emailSettings.SmtpServer;

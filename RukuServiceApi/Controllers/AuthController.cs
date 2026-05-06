@@ -11,28 +11,19 @@ namespace RukuServiceApi.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    public class AuthController : ControllerBase
+    public class AuthController(
+        ApplicationDbContext context,
+        IAuthService authService,
+        ILogger<AuthController> logger,
+        IConfiguration configuration,
+        IHttpClientFactory httpClientFactory
+        ) : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
-        private readonly IAuthService _authService;
-        private readonly ILogger<AuthController> _logger;
-        private readonly IConfiguration _configuration;
-        private readonly IHttpClientFactory _httpClientFactory;
-
-        public AuthController(
-            ApplicationDbContext context,
-            IAuthService authService,
-            ILogger<AuthController> logger,
-            IConfiguration configuration,
-            IHttpClientFactory httpClientFactory
-        )
-        {
-            _context = context;
-            _authService = authService;
-            _logger = logger;
-            _configuration = configuration;
-            _httpClientFactory = httpClientFactory;
-        }
+        private readonly ApplicationDbContext _context = context;
+        private readonly IAuthService _authService = authService;
+        private readonly ILogger<AuthController> _logger = logger;
+        private readonly IConfiguration _configuration = configuration;
+        private readonly IHttpClientFactory _httpClientFactory = httpClientFactory;
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
@@ -46,7 +37,7 @@ namespace RukuServiceApi.Controllers
 
                 // Find user by email and UID (case-insensitive email comparison)
                 var user = await _context.Users.FirstOrDefaultAsync(u =>
-                    u.Email.ToLower() == request.Email.ToLower() && u.Uid == request.Uid
+                    u.Email.Equals(request.Email, StringComparison.CurrentCultureIgnoreCase) && u.Uid == request.Uid
                 );
 
                 if (user == null)

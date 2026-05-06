@@ -11,6 +11,8 @@ using RukuServiceApi.Models;
 using RukuServiceApi.Services;
 using RukuServiceApi.Validators;
 using Serilog;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 // Load environment variables from .env.local if it exists
 static void LoadEnvFile()
@@ -126,6 +128,17 @@ builder.Services.Configure<FileUploadSettings>(
 
 // Register HttpClient for OAuth flows
 builder.Services.AddHttpClient();
+
+// Configure rate limiting for email sending (3 emails per hour per IP)
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("EmailLimit", opt =>
+    {
+        opt.PermitLimit = 3;              // 3 emails
+        opt.Window = TimeSpan.FromHours(1); // per hour
+        opt.QueueLimit = 0;               // no queuing
+    });
+});
 
 // Register services
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -281,6 +294,7 @@ app.UseRouting();
 app.UseCors("AllowAngularApp");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 // Map health check endpoints
 app.MapHealthChecks(
