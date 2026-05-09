@@ -1,12 +1,7 @@
-namespace RukuServiceApi.Models
+namespace RukuServiceApi.Models;
+
+public class EmailSettings
 {
-    public class EmailSettings
-    {
-        public string SmtpServer { get; set; } = string.Empty;
-        public int SmtpPort { get; set; }
-        public string SmtpUsername { get; set; } = string.Empty;
-        public string SmtpPassword { get; set; } = string.Empty;
-        public bool EnableSsl { get; set; }
-        public string RecipientEmail { get; set; } = string.Empty;
-    }
+    public required string ResendApiKey { get; set; }
+    public required string RecipientEmail { get; set; }
 }

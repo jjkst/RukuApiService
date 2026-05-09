@@ -8,150 +8,149 @@ using RukuServiceApi.Context;
 
 #nullable disable
 
-namespace RukuServiceApi.Migrations
+namespace RukuServiceApi.Migrations;
+
+[DbContext(typeof(ApplicationDbContext))]
+partial class ApplicationDbContextModelSnapshot : ModelSnapshot
 {
-    [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    protected override void BuildModel(ModelBuilder modelBuilder)
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
-        {
 #pragma warning disable 612, 618
-            modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.13")
-                .HasAnnotation("Relational:MaxIdentifierLength", 64);
+        modelBuilder
+            .HasAnnotation("ProductVersion", "8.0.13")
+            .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
-            MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
+        MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
-            modelBuilder.Entity("RukuServiceApi.Models.Availability", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+        modelBuilder.Entity("RukuServiceApi.Models.Availability", b =>
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime>("EndDate")
-                        .HasColumnType("datetime(6)");
+                b.Property<DateTime>("EndDate")
+                    .HasColumnType("datetime(6)");
 
-                    b.Property<string>("Services")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                b.Property<string>("Services")
+                    .IsRequired()
+                    .HasColumnType("longtext");
 
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("datetime(6)");
+                b.Property<DateTime>("StartDate")
+                    .HasColumnType("datetime(6)");
 
-                    b.Property<string>("Timeslots")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                b.Property<string>("Timeslots")
+                    .IsRequired()
+                    .HasColumnType("longtext");
 
-                    b.HasKey("Id");
+                b.HasKey("Id");
 
-                    b.ToTable("Availabilities");
-                });
+                b.ToTable("Availabilities");
+            });
 
-            modelBuilder.Entity("RukuServiceApi.Models.Schedule", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+        modelBuilder.Entity("RukuServiceApi.Models.Schedule", b =>
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("ContactName")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                b.Property<string>("ContactName")
+                    .IsRequired()
+                    .HasColumnType("longtext");
 
-                    b.Property<string>("Note")
-                        .HasColumnType("longtext");
+                b.Property<string>("Note")
+                    .HasColumnType("longtext");
 
-                    b.Property<DateTime>("SelectedDate")
-                        .HasColumnType("datetime(6)");
+                b.Property<DateTime>("SelectedDate")
+                    .HasColumnType("datetime(6)");
 
-                    b.Property<string>("Services")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                b.Property<string>("Services")
+                    .IsRequired()
+                    .HasColumnType("longtext");
 
-                    b.Property<string>("Timeslots")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                b.Property<string>("Timeslots")
+                    .IsRequired()
+                    .HasColumnType("longtext");
 
-                    b.Property<string>("Uid")
-                        .HasColumnType("longtext");
+                b.Property<string>("Uid")
+                    .HasColumnType("longtext");
 
-                    b.HasKey("Id");
+                b.HasKey("Id");
 
-                    b.ToTable("Schedules");
-                });
+                b.ToTable("Schedules");
+            });
 
-            modelBuilder.Entity("RukuServiceApi.Models.Service", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+        modelBuilder.Entity("RukuServiceApi.Models.Service", b =>
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                b.Property<string>("Description")
+                    .IsRequired()
+                    .HasColumnType("longtext");
 
-                    b.Property<string>("Features")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                b.Property<string>("Features")
+                    .IsRequired()
+                    .HasColumnType("longtext");
 
-                    b.Property<string>("FileName")
-                        .HasColumnType("longtext");
+                b.Property<string>("FileName")
+                    .HasColumnType("longtext");
 
-                    b.Property<string>("PricingPlans")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                b.Property<string>("PricingPlans")
+                    .IsRequired()
+                    .HasColumnType("longtext");
 
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)");
+                b.Property<string>("Title")
+                    .IsRequired()
+                    .HasColumnType("varchar(255)");
 
-                    b.HasKey("Id");
+                b.HasKey("Id");
 
-                    b.HasIndex("Title")
-                        .IsUnique();
+                b.HasIndex("Title")
+                    .IsUnique();
 
-                    b.ToTable("Services");
-                });
+                b.ToTable("Services");
+            });
 
-            modelBuilder.Entity("RukuServiceApi.Models.User", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+        modelBuilder.Entity("RukuServiceApi.Models.User", b =>
+            {
+                b.Property<int>("Id")
+                    .ValueGeneratedOnAdd()
+                    .HasColumnType("int");
 
-                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+                MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                b.Property<string>("DisplayName")
+                    .IsRequired()
+                    .HasColumnType("longtext");
 
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                b.Property<string>("Email")
+                    .IsRequired()
+                    .HasColumnType("longtext");
 
-                    b.Property<bool>("EmailVerified")
-                        .HasColumnType("tinyint(1)");
+                b.Property<bool>("EmailVerified")
+                    .HasColumnType("tinyint(1)");
 
-                    b.Property<int>("Provider")
-                        .HasColumnType("int");
+                b.Property<int>("Provider")
+                    .HasColumnType("int");
 
-                    b.Property<int>("Role")
-                        .HasColumnType("int");
+                b.Property<int>("Role")
+                    .HasColumnType("int");
 
-                    b.Property<string>("Uid")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                b.Property<string>("Uid")
+                    .IsRequired()
+                    .HasColumnType("longtext");
 
-                    b.HasKey("Id");
+                b.HasKey("Id");
 
-                    b.ToTable("Users");
-                });
+                b.ToTable("Users");
+            });
 #pragma warning restore 612, 618
-        }
     }
 }

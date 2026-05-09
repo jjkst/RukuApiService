@@ -144,6 +144,7 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IFileUploadService, FileUploadService>();
 builder.Services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
+builder.Services.AddSingleton<EmailService>();
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
@@ -183,14 +184,10 @@ builder
     });
 
 // Configure Authorization Policies
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy(AuthorizationPolicies.AdminOnly, policy => policy.RequireRole("Admin"));
-
-    options.AddPolicy(AuthorizationPolicies.AdminOrOwner, policy => policy.RequireRole("Admin", "Owner"));
-
-    options.AddPolicy(AuthorizationPolicies.AuthenticatedUser, policy => policy.RequireAuthenticatedUser());
-});
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(AuthorizationPolicies.AdminOnly, policy => policy.RequireRole("Admin"))
+    .AddPolicy(AuthorizationPolicies.AdminOrOwner, policy => policy.RequireRole("Admin", "Owner"))
+    .AddPolicy(AuthorizationPolicies.AuthenticatedUser, policy => policy.RequireAuthenticatedUser());
 
 // Add CORS policy - configure based on environment
 builder.Services.AddCors(options =>
@@ -202,7 +199,7 @@ builder.Services.AddCors(options =>
             policy =>
             {
                 policy
-                    .WithOrigins("http://localhost:4200", "https://localhost:4200")
+                    .WithOrigins("http://localhost:4200", "https://localhost:4200", "https://jk-dev.site")
                     .AllowAnyHeader()
                     .AllowAnyMethod()
                     .AllowCredentials();
@@ -214,7 +211,7 @@ builder.Services.AddCors(options =>
         // Production CORS - restrict origins, methods, and headers
         var allowedOrigins =
             builder.Configuration["AllowedOrigins"]?.Split(',')
-            ?? new[] { "https://yourdomain.com" };
+            ?? ["https://jk-dev.site"];
         options.AddPolicy(
             "AllowAngularApp",
             policy =>
