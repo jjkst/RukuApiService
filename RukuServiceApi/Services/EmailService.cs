@@ -1,9 +1,6 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
 using RukuServiceApi.Models;
 
 namespace RukuServiceApi.Services;
@@ -12,10 +9,12 @@ public class EmailService
 {
     private readonly HttpClient _httpClient;
     private readonly EmailSettings _settings;
+    private readonly ILogger<EmailService> _logger;
 
-    public EmailService(IOptions<EmailSettings> emailSettings)
+    public EmailService(IOptions<EmailSettings> emailSettings, ILogger<EmailService> logger)
     {
         _settings = emailSettings.Value;
+        _logger = logger;
 
         _httpClient = new HttpClient();
         _httpClient.DefaultRequestHeaders.Add(
@@ -44,6 +43,17 @@ public class EmailService
             "https://api.resend.com/emails",
             content
         );
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var responseBody = await response.Content.ReadAsStringAsync();
+            _logger.LogError(
+                "Resend send failed: {StatusCode} {ReasonPhrase} — {Body}",
+                (int)response.StatusCode,
+                response.ReasonPhrase,
+                responseBody
+            );
+        }
 
         return response.IsSuccessStatusCode;
     }
