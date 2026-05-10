@@ -199,7 +199,12 @@ builder.Services.AddCors(options =>
             policy =>
             {
                 policy
-                    .WithOrigins("http://localhost:4200", "https://localhost:4200", "https://jk-dev.site")
+                    .WithOrigins(
+                        "http://localhost:4200",
+                        "https://localhost:4200",
+                        "https://jk-dev.site",
+                        "https://bookings.jk-dev.site"
+                    )
                     .AllowAnyHeader()
                     .AllowAnyMethod()
                     .AllowCredentials();
@@ -211,7 +216,7 @@ builder.Services.AddCors(options =>
         // Production CORS - restrict origins, methods, and headers
         var allowedOrigins =
             builder.Configuration["AllowedOrigins"]?.Split(',')
-            ?? ["https://jk-dev.site"];
+            ?? ["https://jk-dev.site", "https://bookings.jk-dev.site"];
         options.AddPolicy(
             "AllowAngularApp",
             policy =>
