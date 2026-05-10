@@ -35,9 +35,8 @@ public class AuthController(
                 return BadRequest(new { message = "Email and UID are required" });
             }
 
-            // Find user by email and UID (case-insensitive email comparison)
             var user = await _context.Users.FirstOrDefaultAsync(u =>
-                u.Email.Equals(request.Email, StringComparison.CurrentCultureIgnoreCase) && u.Uid == request.Uid
+                u.Email == request.Email && u.Uid == request.Uid
             );
 
             if (user == null)
