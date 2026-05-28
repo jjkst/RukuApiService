@@ -1,4 +1,5 @@
 using System.Linq;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RukuServiceApi.Context;
@@ -12,6 +13,7 @@ public class TimeslotRequest
     public List<string> Services { get; set; } = new();
 }
 
+[Authorize(Policy = AuthorizationPolicies.AuthenticatedUser)]
 public class AvailabilitiesController(
     ApplicationDbContext context,
     ILogger<AvailabilitiesController> logger

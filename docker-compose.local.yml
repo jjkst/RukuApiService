@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  db:
+    image: mariadb:10.11
+    container_name: ruku_api_local_db
+    restart: unless-stopped
+    environment:
+      - MARIADB_ROOT_PASSWORD=ruku_local_root_pwd
+      - MARIADB_DATABASE=RukuITServicesTest
+      - MARIADB_USER=ruku
+      - MARIADB_PASSWORD=ruku_local_pwd
+    ports:
+      - "3306:3306"
+    volumes:
+      - ruku_api_local_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    container_name: ruku_api_local
+    restart: unless-stopped
+    ports:
+      - "5002:5002"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5002
+      - CONNECTIONSTRING=server=db;database=RukuITServicesTest;user=ruku;password=ruku_local_pwd;AllowPublicKeyRetrieval=True;TreatTinyAsBoolean=True
+      - JWT_SECRET_KEY=local-ruku-test-secret-key-123456
+      - JWT_ISSUER=RukuLocal
+      - JWT_AUDIENCE=RukuLocal
+      - JWT_EXPIRATION_MINUTES=60
+      - RESEND_API_KEY=local-resend-api-key
+      - RECIPIENT_EMAIL=admin@rukuit.com
+      - ADMIN_EMAIL=admin@rukuit.com
+      - ADMIN_UID=admin-uid-12345
+      - ADMIN_DISPLAY_NAME=Administrator
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./RukuServiceApi/logs:/app/logs
+      - ./RukuServiceApi/uploads:/app/uploads
+
+volumes:
+  ruku_api_local_db_data:

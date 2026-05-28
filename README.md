@@ -37,10 +37,9 @@ APICSharpEntityFrameworkMySql/
 │   ├── Controllers/                    # API controllers
 │   │   ├── BaseController.cs           # Generic CRUD (GetAll, GetById, Create, Update, Delete)
 │   │   ├── AuthController.cs           # Login & registration
-│   │   ├── ServicesController.cs       # Service management (Admin/Owner)
-│   │   ├── PublicServicesController.cs  # Public read-only service access
+│   │   ├── ServicesController.cs       # Service management (authenticated users)
 │   │   ├── AvailabilitiesController.cs # Availability CRUD + date/timeslot queries
-│   │   ├── SchedulesController.cs      # Schedule CRUD
+│   │   ├── SchedulesController.cs      # Schedule CRUD (owner-filtered)
 │   │   ├── UsersController.cs          # User management + role updates
 │   │   ├── EmailController.cs          # Contact form + email settings
 │   │   ├── UploadImageController.cs    # File uploads (10MB max)
@@ -71,6 +70,7 @@ APICSharpEntityFrameworkMySql/
 ├── RukuServiceApi.UnitTests/            # Unit tests (MSTest, mocked dependencies)
 ├── MigrateTool/                         # CLI migration tool
 ├── Dockerfile                           # Multi-stage: build -> migrate -> api
+├── docker-compose.local.yml             # Local Docker test harness for API + MariaDB
 ├── env.template                         # Local env vars template
 └── (see jk-portfolio-deploy for full-stack Docker Compose, nginx, mariadb config)
 ```
@@ -95,8 +95,8 @@ Client Request
 | Policy | Roles | Used By |
 |--------|-------|---------|
 | `AdminOnly` | Admin | Monitoring, email settings, user role management |
-| `AdminOrOwner` | Admin, Owner | Services CRUD, file uploads |
-| `AuthenticatedUser` | Any authenticated user | Email send, user read |
+| `AdminOrOwner` | Admin, Owner | File uploads |
+| `AuthenticatedUser` | Any authenticated user | Services CRUD, availabilities CRUD, schedules CRUD (owner-filtered), email send, user read |
 
 ## API Routes
 
@@ -183,57 +183,9 @@ curl -X POST http://localhost:5002/api/auth/register \
 
 ---
 
-### Public Services (`/api/publicservices`) — No Auth Required
+### Services (`/api/services`) — Authenticated users
 
-#### GET `/api/publicservices`
-
-List all services (public, no authentication needed).
-
-```bash
-curl http://localhost:5002/api/publicservices
-```
-
-**Response (200):**
-```json
-[
-  {
-    "id": 1,
-    "title": "Build Your Website",
-    "fileName": "web-dev.png",
-    "description": "Full-stack web development service...",
-    "features": ["Responsive Design", "SEO Optimization"],
-    "pricingPlans": [
-      {
-        "name": "Basic",
-        "initialSetupFee": "$500.00",
-        "monthlySubscription": "$50.00",
-        "features": ["5 pages", "Basic support"]
-      }
-    ]
-  }
-]
-```
-
-#### GET `/api/publicservices/{id}`
-
-Get a single service by ID.
-
-```bash
-curl http://localhost:5002/api/publicservices/1
-```
-
-**Response (200):** Single service object (same shape as above).
-
-| Status | Meaning |
-|--------|---------|
-| 200 | Success |
-| 404 | Service not found |
-
----
-
-### Services (`/api/services`) — Admin/Owner
-
-All endpoints require `AdminOrOwner` authorization.
+All service endpoints now require any authenticated user (`AuthenticatedUser`).
 
 #### GET `/api/services`
 
@@ -956,6 +908,20 @@ The deploy project provides:
 - Deployment scripts for Digital Ocean
 - Database backup automation
 
+### Local Docker Test Harness
+
+Use `docker-compose.local.yml` to run a local API + MariaDB test environment for integration verification:
+
+```bash
+docker compose -f docker-compose.local.yml up --build -d
+# Execute integration tests
+dotnet test RukuServiceApi.IntegrationTests
+# Tear down local test environment
+docker compose -f docker-compose.local.yml down -v
+```
+
+This local harness is intended for API validation only. For full deployment, continue using the existing `jk-portfolio-deploy` compose stack.
+
 ### Standalone Docker Run (API only)
 
 To run just the API container (e.g., for development or testing):
@@ -977,6 +943,17 @@ The project has two test projects:
 
 HTTP-level tests that hit the running API at `http://localhost:5002`. Requires the API server to be running.
 
+For local Docker-based validation, use the included `docker-compose.local.yml` to run MariaDB and the API together:
+
+```bash
+docker compose -f docker-compose.local.yml up --build -d
+# Run integration tests against localhost:5002
+dotnet test RukuServiceApi.IntegrationTests
+docker compose -f docker-compose.local.yml down -v
+```
+
+This is a local test harness only; full production deployment can still use the existing compose stack in `jk-portfolio-deploy`.
+
 ```bash
 # Start the API first
 dotnet run --project RukuServiceApi &
@@ -985,7 +962,7 @@ dotnet run --project RukuServiceApi &
 dotnet test RukuServiceApi.IntegrationTests
 ```
 
-Covers all controllers: Auth, Services, PublicServices, Availabilities, Schedules, Users, Email, UploadImage, Monitoring, and Health Checks.
+Covers all controllers: Auth, Services, Availabilities, Schedules, Users, Email, UploadImage, Monitoring, and Health Checks.
 
 ### Unit Tests (`RukuServiceApi.UnitTests`)
 

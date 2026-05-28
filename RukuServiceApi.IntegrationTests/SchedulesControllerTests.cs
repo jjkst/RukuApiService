@@ -6,17 +6,33 @@ namespace RukuServiceApi.IntegrationTests;
 public sealed class SchedulesControllerTests
 {
     private static readonly HttpClient Client = TestHelpers.GetClient();
+    private static string? _adminToken;
+
+    [ClassInitialize]
+    public static async Task ClassInitialize(TestContext context)
+    {
+        _adminToken = await TestHelpers.GetAdminTokenAsync();
+    }
 
     [TestMethod]
-    public async Task GetAllSchedules_ShouldReturnList()
+    public async Task GetAllSchedules_WithAuth_ShouldReturnList()
     {
-        var response = await Client.GetAsync("/api/schedules");
+        var request = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Get, "/api/schedules", _adminToken);
+        var response = await Client.SendAsync(request);
 
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
         var schedules = JsonDocument.Parse(content);
 
         Assert.IsNotNull(schedules);
+    }
+
+    [TestMethod]
+    public async Task GetAllSchedules_WithoutAuth_ShouldReturnUnauthorized()
+    {
+        var response = await Client.GetAsync("/api/schedules");
+
+        Assert.AreEqual(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     [TestMethod]
@@ -32,8 +48,9 @@ public sealed class SchedulesControllerTests
             uid = "test-uid-123",
         };
 
-        var content = TestHelpers.CreateJsonContent(schedule);
-        var response = await Client.PostAsync("/api/schedules", content);
+        var request = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Post, "/api/schedules", _adminToken);
+        request.Content = TestHelpers.CreateJsonContent(schedule);
+        var response = await Client.SendAsync(request);
 
         Assert.AreEqual(System.Net.HttpStatusCode.Created, response.StatusCode);
         var responseContent = await response.Content.ReadAsStringAsync();
@@ -43,9 +60,58 @@ public sealed class SchedulesControllerTests
     }
 
     [TestMethod]
+    public async Task Subscriber_CreateSchedule_StampsUidFromJwt()
+    {
+        var (subscriberToken, subscriberUid) = await TestHelpers.GetSubscriberAsync();
+        Assert.IsNotNull(subscriberToken);
+        Assert.IsNotNull(subscriberUid);
+
+        var schedule = new
+        {
+            contactName = "Subscriber User",
+            selectedDate = DateTime.Now.AddDays(6),
+            services = new[] { "Mobile App Development" },
+            timeslots = new[] { "11:00" },
+            note = "Subscriber schedule",
+            uid = "malicious-uid"
+        };
+
+        var request = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Post, "/api/schedules", subscriberToken);
+        request.Content = TestHelpers.CreateJsonContent(schedule);
+        var response = await Client.SendAsync(request);
+
+        Assert.AreEqual(System.Net.HttpStatusCode.Created, response.StatusCode);
+        var createdSchedule = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.AreEqual(subscriberUid, createdSchedule.RootElement.GetProperty("uid").GetString());
+    }
+
+    [TestMethod]
+    public async Task Subscriber_GetById_OtherUsersSchedule_ReturnsNotFound()
+    {
+        var adminRequest = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Post, "/api/schedules", _adminToken);
+        adminRequest.Content = TestHelpers.CreateJsonContent(new
+        {
+            contactName = "Admin Owned",
+            selectedDate = DateTime.Now.AddDays(7),
+            services = new[] { "Web Development" },
+            timeslots = new[] { "12:00" },
+            note = "Admin schedule",
+        });
+        var adminResponse = await Client.SendAsync(adminRequest);
+        adminResponse.EnsureSuccessStatusCode();
+        var adminSchedule = JsonDocument.Parse(await adminResponse.Content.ReadAsStringAsync());
+        var scheduleId = adminSchedule.RootElement.GetProperty("id").GetInt32();
+
+        var (subscriberToken, _) = await TestHelpers.GetSubscriberAsync();
+        var getRequest = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Get, $"/api/schedules/{scheduleId}", subscriberToken);
+        var getResponse = await Client.SendAsync(getRequest);
+
+        Assert.AreEqual(System.Net.HttpStatusCode.NotFound, getResponse.StatusCode);
+    }
+
+    [TestMethod]
     public async Task GetScheduleById_WithValidId_ShouldReturnSchedule()
     {
-        // First create a schedule
         var schedule = new
         {
             contactName = "Get Test User",
@@ -54,16 +120,16 @@ public sealed class SchedulesControllerTests
             timeslots = new[] { "11:00" },
         };
 
-        var createContent = TestHelpers.CreateJsonContent(schedule);
-        var createResponse = await Client.PostAsync("/api/schedules", createContent);
+        var request = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Post, "/api/schedules", _adminToken);
+        request.Content = TestHelpers.CreateJsonContent(schedule);
+        var createResponse = await Client.SendAsync(request);
         createResponse.EnsureSuccessStatusCode();
 
-        var createResponseContent = await createResponse.Content.ReadAsStringAsync();
-        var createdSchedule = JsonDocument.Parse(createResponseContent);
+        var createdSchedule = JsonDocument.Parse(await createResponse.Content.ReadAsStringAsync());
         var scheduleId = createdSchedule.RootElement.GetProperty("id").GetInt32();
 
-        // Now get it
-        var getResponse = await Client.GetAsync($"/api/schedules/{scheduleId}");
+        var getRequest = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Get, $"/api/schedules/{scheduleId}", _adminToken);
+        var getResponse = await Client.SendAsync(getRequest);
         getResponse.EnsureSuccessStatusCode();
 
         var getContent = await getResponse.Content.ReadAsStringAsync();
@@ -75,7 +141,6 @@ public sealed class SchedulesControllerTests
     [TestMethod]
     public async Task UpdateSchedule_WithValidData_ShouldReturnOk()
     {
-        // First create a schedule
         var schedule = new
         {
             contactName = "Update Test User",
@@ -84,15 +149,14 @@ public sealed class SchedulesControllerTests
             timeslots = new[] { "14:00" },
         };
 
-        var createContent = TestHelpers.CreateJsonContent(schedule);
-        var createResponse = await Client.PostAsync("/api/schedules", createContent);
+        var createRequest = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Post, "/api/schedules", _adminToken);
+        createRequest.Content = TestHelpers.CreateJsonContent(schedule);
+        var createResponse = await Client.SendAsync(createRequest);
         createResponse.EnsureSuccessStatusCode();
 
-        var createResponseContent = await createResponse.Content.ReadAsStringAsync();
-        var createdSchedule = JsonDocument.Parse(createResponseContent);
+        var createdSchedule = JsonDocument.Parse(await createResponse.Content.ReadAsStringAsync());
         var scheduleId = createdSchedule.RootElement.GetProperty("id").GetInt32();
 
-        // Now update it
         var updateSchedule = new
         {
             id = scheduleId,
@@ -103,8 +167,9 @@ public sealed class SchedulesControllerTests
             note = "Updated note",
         };
 
-        var updateContent = TestHelpers.CreateJsonContent(updateSchedule);
-        var updateResponse = await Client.PutAsync($"/api/schedules/{scheduleId}", updateContent);
+        var updateRequest = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Put, $"/api/schedules/{scheduleId}", _adminToken);
+        updateRequest.Content = TestHelpers.CreateJsonContent(updateSchedule);
+        var updateResponse = await Client.SendAsync(updateRequest);
 
         updateResponse.EnsureSuccessStatusCode();
     }
@@ -112,7 +177,6 @@ public sealed class SchedulesControllerTests
     [TestMethod]
     public async Task DeleteSchedule_WithValidId_ShouldReturnNoContent()
     {
-        // First create a schedule
         var schedule = new
         {
             contactName = "Delete Test User",
@@ -121,16 +185,16 @@ public sealed class SchedulesControllerTests
             timeslots = new[] { "16:00" },
         };
 
-        var createContent = TestHelpers.CreateJsonContent(schedule);
-        var createResponse = await Client.PostAsync("/api/schedules", createContent);
+        var createRequest = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Post, "/api/schedules", _adminToken);
+        createRequest.Content = TestHelpers.CreateJsonContent(schedule);
+        var createResponse = await Client.SendAsync(createRequest);
         createResponse.EnsureSuccessStatusCode();
 
-        var createResponseContent = await createResponse.Content.ReadAsStringAsync();
-        var createdSchedule = JsonDocument.Parse(createResponseContent);
+        var createdSchedule = JsonDocument.Parse(await createResponse.Content.ReadAsStringAsync());
         var scheduleId = createdSchedule.RootElement.GetProperty("id").GetInt32();
 
-        // Now delete it
-        var deleteResponse = await Client.DeleteAsync($"/api/schedules/{scheduleId}");
+        var deleteRequest = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Delete, $"/api/schedules/{scheduleId}", _adminToken);
+        var deleteResponse = await Client.SendAsync(deleteRequest);
 
         Assert.AreEqual(System.Net.HttpStatusCode.NoContent, deleteResponse.StatusCode);
     }

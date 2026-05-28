@@ -267,10 +267,10 @@ builder
 
 var app = builder.Build();
 
-// Configure URLs - use port 5002 for development
+// Configure URLs - use port 5002 for development and expose all interfaces so Docker port mapping works
 if (app.Environment.IsDevelopment())
 {
-    app.Urls.Add("http://localhost:5002");
+    app.Urls.Add("http://0.0.0.0:5002");
 }
 
 // Configure the HTTP request pipeline.

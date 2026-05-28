@@ -30,11 +30,8 @@ public sealed class EmailServiceHealthCheckTests
     {
         var healthCheck = CreateHealthCheck(new EmailSettings
         {
-            SmtpServer = "smtp.example.com",
-            SmtpPort = 587,
-            SmtpUsername = "user@example.com",
-            SmtpPassword = "password",
-            EnableSsl = true
+            ResendApiKey = "test-api-key",
+            RecipientEmail = "recipient@example.com"
         });
         var context = new HealthCheckContext();
 
@@ -45,13 +42,12 @@ public sealed class EmailServiceHealthCheckTests
     }
 
     [TestMethod]
-    public async Task CheckHealthAsync_WithEmptySmtpServer_ShouldReturnDegraded()
+    public async Task CheckHealthAsync_WithEmptyRecipientEmail_ShouldReturnDegraded()
     {
         var healthCheck = CreateHealthCheck(new EmailSettings
         {
-            SmtpServer = "",
-            SmtpUsername = "user@example.com",
-            SmtpPassword = "password"
+            ResendApiKey = "test-api-key",
+            RecipientEmail = string.Empty
         });
         var context = new HealthCheckContext();
 
@@ -62,29 +58,12 @@ public sealed class EmailServiceHealthCheckTests
     }
 
     [TestMethod]
-    public async Task CheckHealthAsync_WithEmptySmtpUsername_ShouldReturnDegraded()
+    public async Task CheckHealthAsync_WithEmptyResendApiKey_ShouldReturnDegraded()
     {
         var healthCheck = CreateHealthCheck(new EmailSettings
         {
-            SmtpServer = "smtp.example.com",
-            SmtpUsername = "",
-            SmtpPassword = "password"
-        });
-        var context = new HealthCheckContext();
-
-        var result = await healthCheck.CheckHealthAsync(context);
-
-        result.Status.Should().Be(HealthStatus.Degraded);
-    }
-
-    [TestMethod]
-    public async Task CheckHealthAsync_WithEmptySmtpPassword_ShouldReturnDegraded()
-    {
-        var healthCheck = CreateHealthCheck(new EmailSettings
-        {
-            SmtpServer = "smtp.example.com",
-            SmtpUsername = "user@example.com",
-            SmtpPassword = ""
+            ResendApiKey = string.Empty,
+            RecipientEmail = "recipient@example.com"
         });
         var context = new HealthCheckContext();
 
@@ -98,19 +77,14 @@ public sealed class EmailServiceHealthCheckTests
     {
         var healthCheck = CreateHealthCheck(new EmailSettings
         {
-            SmtpServer = "smtp.example.com",
-            SmtpPort = 587,
-            SmtpUsername = "user@example.com",
-            SmtpPassword = "password",
-            EnableSsl = true
+            ResendApiKey = "test-api-key",
+            RecipientEmail = "recipient@example.com"
         });
         var context = new HealthCheckContext();
 
         var result = await healthCheck.CheckHealthAsync(context);
 
-        result.Data.Should().ContainKey("smtpServer");
-        result.Data.Should().ContainKey("smtpPort");
-        result.Data.Should().ContainKey("enableSsl");
+        result.Data.Should().ContainKey("recipientEmail");
         result.Data.Should().ContainKey("timestamp");
     }
 }

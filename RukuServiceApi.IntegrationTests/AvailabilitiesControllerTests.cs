@@ -6,11 +6,19 @@ namespace RukuServiceApi.IntegrationTests;
 public sealed class AvailabilitiesControllerTests
 {
     private static readonly HttpClient Client = TestHelpers.GetClient();
+    private static string? _adminToken;
+
+    [ClassInitialize]
+    public static async Task ClassInitialize(TestContext context)
+    {
+        _adminToken = await TestHelpers.GetAdminTokenAsync();
+    }
 
     [TestMethod]
-    public async Task GetAllAvailabilities_ShouldReturnList()
+    public async Task GetAllAvailabilities_WithAuth_ShouldReturnList()
     {
-        var response = await Client.GetAsync("/api/availabilities");
+        var request = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Get, "/api/availabilities", _adminToken);
+        var response = await Client.SendAsync(request);
 
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
@@ -20,9 +28,18 @@ public sealed class AvailabilitiesControllerTests
     }
 
     [TestMethod]
-    public async Task GetAvailableDates_ShouldReturnDates()
+    public async Task GetAllAvailabilities_WithoutAuth_ShouldReturnUnauthorized()
     {
-        var response = await Client.GetAsync("/api/availabilities/dates");
+        var response = await Client.GetAsync("/api/availabilities");
+
+        Assert.AreEqual(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task GetAvailableDates_WithAuth_ShouldReturnDates()
+    {
+        var request = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Get, "/api/availabilities/dates", _adminToken);
+        var response = await Client.SendAsync(request);
 
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
@@ -32,10 +49,23 @@ public sealed class AvailabilitiesControllerTests
     }
 
     [TestMethod]
+    public async Task GetAvailableDates_WithoutAuth_ShouldReturnUnauthorized()
+    {
+        var response = await Client.GetAsync("/api/availabilities/dates");
+
+        Assert.AreEqual(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [TestMethod]
     public async Task GetAvailableServices_WithDate_ShouldReturnServices()
     {
         var futureDate = DateTime.Now.AddDays(30).ToString("yyyy-MM-dd");
-        var response = await Client.GetAsync($"/api/availabilities/services?date={futureDate}");
+        var request = TestHelpers.CreateAuthenticatedRequest(
+            HttpMethod.Get,
+            $"/api/availabilities/services?date={futureDate}",
+            _adminToken
+        );
+        var response = await Client.SendAsync(request);
 
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
@@ -53,10 +83,10 @@ public sealed class AvailabilitiesControllerTests
             services = new[] { "Web Development", "Mobile App Development" },
         };
 
-        var content = TestHelpers.CreateJsonContent(timeslotRequest);
-        var response = await Client.PostAsync("/api/availabilities/timeslots", content);
+        var request = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Post, "/api/availabilities/timeslots", _adminToken);
+        request.Content = TestHelpers.CreateJsonContent(timeslotRequest);
+        var response = await Client.SendAsync(request);
 
-        // Could be NotFound if no availabilities exist, or Ok if they do
         Assert.IsTrue(
             response.StatusCode == System.Net.HttpStatusCode.OK
                 || response.StatusCode == System.Net.HttpStatusCode.NotFound
@@ -74,10 +104,10 @@ public sealed class AvailabilitiesControllerTests
             timeslots = new[] { "09:00", "10:00", "11:00", "14:00", "15:00" },
         };
 
-        var content = TestHelpers.CreateJsonContent(availability);
-        var response = await Client.PostAsync("/api/availabilities", content);
+        var request = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Post, "/api/availabilities", _adminToken);
+        request.Content = TestHelpers.CreateJsonContent(availability);
+        var response = await Client.SendAsync(request);
 
-        // Could be Created or Conflict if dates overlap
         Assert.IsTrue(
             response.StatusCode == System.Net.HttpStatusCode.Created
                 || response.StatusCode == System.Net.HttpStatusCode.Conflict
@@ -85,9 +115,25 @@ public sealed class AvailabilitiesControllerTests
     }
 
     [TestMethod]
+    public async Task CreateAvailability_WithoutAuth_ShouldReturnUnauthorized()
+    {
+        var availability = new
+        {
+            startDate = DateTime.Now.AddDays(1),
+            endDate = DateTime.Now.AddDays(7),
+            services = new[] { "Web Development" },
+            timeslots = new[] { "09:00", "10:00", "11:00" },
+        };
+
+        var content = TestHelpers.CreateJsonContent(availability);
+        var response = await Client.PostAsync("/api/availabilities", content);
+
+        Assert.AreEqual(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [TestMethod]
     public async Task GetAvailabilityById_WithValidId_ShouldReturnAvailability()
     {
-        // First create an availability
         var availability = new
         {
             startDate = DateTime.Now.AddDays(10),
@@ -96,8 +142,9 @@ public sealed class AvailabilitiesControllerTests
             timeslots = new[] { "09:00", "10:00" },
         };
 
-        var createContent = TestHelpers.CreateJsonContent(availability);
-        var createResponse = await Client.PostAsync("/api/availabilities", createContent);
+        var createRequest = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Post, "/api/availabilities", _adminToken);
+        createRequest.Content = TestHelpers.CreateJsonContent(availability);
+        var createResponse = await Client.SendAsync(createRequest);
 
         if (createResponse.IsSuccessStatusCode)
         {
@@ -105,8 +152,8 @@ public sealed class AvailabilitiesControllerTests
             var createdAvailability = JsonDocument.Parse(createResponseContent);
             var availabilityId = createdAvailability.RootElement.GetProperty("id").GetInt32();
 
-            // Now get it
-            var getResponse = await Client.GetAsync($"/api/availabilities/{availabilityId}");
+            var getRequest = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Get, $"/api/availabilities/{availabilityId}", _adminToken);
+            var getResponse = await Client.SendAsync(getRequest);
             getResponse.EnsureSuccessStatusCode();
 
             var getContent = await getResponse.Content.ReadAsStringAsync();
@@ -130,8 +177,9 @@ public sealed class AvailabilitiesControllerTests
             timeslots = new[] { "09:00", "10:00" },
         };
 
-        var createContent = TestHelpers.CreateJsonContent(availability);
-        var createResponse = await Client.PostAsync("/api/availabilities", createContent);
+        var createRequest = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Post, "/api/availabilities", _adminToken);
+        createRequest.Content = TestHelpers.CreateJsonContent(availability);
+        var createResponse = await Client.SendAsync(createRequest);
 
         if (createResponse.IsSuccessStatusCode)
         {
@@ -148,11 +196,9 @@ public sealed class AvailabilitiesControllerTests
                 timeslots = new[] { "14:00", "15:00" },
             };
 
-            var updateContent = TestHelpers.CreateJsonContent(updateAvailability);
-            var updateResponse = await Client.PutAsync(
-                $"/api/availabilities/{availabilityId}",
-                updateContent
-            );
+            var updateRequest = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Put, $"/api/availabilities/{availabilityId}", _adminToken);
+            updateRequest.Content = TestHelpers.CreateJsonContent(updateAvailability);
+            var updateResponse = await Client.SendAsync(updateRequest);
 
             updateResponse.EnsureSuccessStatusCode();
         }
@@ -169,8 +215,9 @@ public sealed class AvailabilitiesControllerTests
             timeslots = new[] { "09:00" },
         };
 
-        var createContent = TestHelpers.CreateJsonContent(availability);
-        var createResponse = await Client.PostAsync("/api/availabilities", createContent);
+        var createRequest = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Post, "/api/availabilities", _adminToken);
+        createRequest.Content = TestHelpers.CreateJsonContent(availability);
+        var createResponse = await Client.SendAsync(createRequest);
 
         if (createResponse.IsSuccessStatusCode)
         {
@@ -178,9 +225,8 @@ public sealed class AvailabilitiesControllerTests
             var createdAvailability = JsonDocument.Parse(createResponseContent);
             var availabilityId = createdAvailability.RootElement.GetProperty("id").GetInt32();
 
-            var deleteResponse = await Client.DeleteAsync(
-                $"/api/availabilities/{availabilityId}"
-            );
+            var deleteRequest = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Delete, $"/api/availabilities/{availabilityId}", _adminToken);
+            var deleteResponse = await Client.SendAsync(deleteRequest);
 
             Assert.AreEqual(System.Net.HttpStatusCode.NoContent, deleteResponse.StatusCode);
         }
@@ -197,8 +243,9 @@ public sealed class AvailabilitiesControllerTests
             timeslots = new[] { "09:00" },
         };
 
-        var content = TestHelpers.CreateJsonContent(availability);
-        var response = await Client.PostAsync("/api/availabilities", content);
+        var request = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Post, "/api/availabilities", _adminToken);
+        request.Content = TestHelpers.CreateJsonContent(availability);
+        var response = await Client.SendAsync(request);
 
         Assert.AreEqual(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -214,8 +261,9 @@ public sealed class AvailabilitiesControllerTests
             timeslots = new[] { "09:00" },
         };
 
-        var content = TestHelpers.CreateJsonContent(availability);
-        var response = await Client.PostAsync("/api/availabilities", content);
+        var request = TestHelpers.CreateAuthenticatedRequest(HttpMethod.Post, "/api/availabilities", _adminToken);
+        request.Content = TestHelpers.CreateJsonContent(availability);
+        var response = await Client.SendAsync(request);
 
         Assert.AreEqual(System.Net.HttpStatusCode.BadRequest, response.StatusCode);
     }
