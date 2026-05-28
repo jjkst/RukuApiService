@@ -72,7 +72,7 @@ public class FileUploadService : IFileUploadService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error uploading file: {FileName}", file.FileName);
+            _logger.LogError(ex, "Error uploading file: {FileName}", file?.FileName ?? "<unknown>");
             return (false, string.Empty, "File upload failed");
         }
     }

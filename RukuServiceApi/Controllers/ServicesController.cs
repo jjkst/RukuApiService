@@ -21,18 +21,24 @@ public class ServicesController(
     {
         try
         {
-            // Check for duplicates
-            bool duplicateService = await _context.Services.AnyAsync(ps =>
-                ps.Title == request.Title || ps.Description == request.Description
-            );
-
-            if (duplicateService)
+            if (await _context.Services.AnyAsync(ps => ps.Title == request.Title))
             {
                 return Conflict(
                     new
                     {
-                        message = $"Service with title '{request.Title}' or description '{request.Description}' already exists.",
-                        code = "DUPLICATE_SERVICE",
+                        message = $"Service with title '{request.Title}' already exists.",
+                        code = "DUPLICATE_SERVICE_TITLE",
+                    }
+                );
+            }
+
+            if (await _context.Services.AnyAsync(ps => ps.Description == request.Description))
+            {
+                return Conflict(
+                    new
+                    {
+                        message = "A service with the same description already exists.",
+                        code = "DUPLICATE_SERVICE_DESCRIPTION",
                     }
                 );
             }
@@ -75,19 +81,24 @@ public class ServicesController(
                 return NotFound($"Service with ID {id} not found.");
             }
 
-            // Check for duplicates (excluding current service)
-            bool duplicateService = await _context.Services.AnyAsync(ps =>
-                ps.Id != id
-                && (ps.Title == request.Title || ps.Description == request.Description)
-            );
-
-            if (duplicateService)
+            if (await _context.Services.AnyAsync(ps => ps.Id != id && ps.Title == request.Title))
             {
                 return Conflict(
                     new
                     {
-                        message = $"Service with title '{request.Title}' or description '{request.Description}' already exists.",
-                        code = "DUPLICATE_SERVICE",
+                        message = $"Service with title '{request.Title}' already exists.",
+                        code = "DUPLICATE_SERVICE_TITLE",
+                    }
+                );
+            }
+
+            if (await _context.Services.AnyAsync(ps => ps.Id != id && ps.Description == request.Description))
+            {
+                return Conflict(
+                    new
+                    {
+                        message = "A service with the same description already exists.",
+                        code = "DUPLICATE_SERVICE_DESCRIPTION",
                     }
                 );
             }

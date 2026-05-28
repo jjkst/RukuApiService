@@ -28,7 +28,10 @@ public class AvailabilitiesController(
         {
             var today = DateTime.Today;
             var availabilities = await _context
-                .Availabilities.Where(a => a.EndDate.Date >= today)
+                .Availabilities
+                .AsNoTracking()
+                .Where(a => a.EndDate.Date >= today)
+                .Select(a => new { a.StartDate, a.EndDate })
                 .ToListAsync();
 
             var allDates = availabilities
@@ -64,7 +67,9 @@ public class AvailabilitiesController(
         {
             // Find all availabilities that include the given date
             var availabilities = await _context
-                .Availabilities.Where(a =>
+                .Availabilities
+                .AsNoTracking()
+                .Where(a =>
                     date.Date >= a.StartDate.Date && date.Date <= a.EndDate.Date
                 )
                 .ToListAsync();
@@ -93,7 +98,9 @@ public class AvailabilitiesController(
         try
         {
             var availabilitiesByDate = await _context
-                .Availabilities.Where(a =>
+                .Availabilities
+                .AsNoTracking()
+                .Where(a =>
                     request.Date.Date >= a.StartDate.Date && request.Date.Date <= a.EndDate.Date
                 )
                 .ToListAsync();

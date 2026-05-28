@@ -56,8 +56,9 @@ public class DatabaseSeeder : IDatabaseSeeder
                 return;
             }
 
+            var normalizedEmail = email.ToLower();
             var existingUser = await _context.Users
-                .FirstOrDefaultAsync(u => u.Email == email || u.Uid == uid);
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail || u.Uid == uid);
 
             if (existingUser != null)
             {

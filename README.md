@@ -107,6 +107,22 @@ Client Request
 > Authorization: Bearer <token>
 > ```
 
+### Pagination
+
+All list endpoints (`GET /api/services`, `GET /api/availabilities`, `GET /api/schedules`, `GET /api/users`) accept optional pagination query parameters:
+
+| Param | Default | Max | Notes |
+|-------|---------|-----|-------|
+| `skip` | `0`     | —   | Negative values are clamped to `0` |
+| `take` | `100`   | `500` | Out-of-range values fall back to the default |
+
+Results are ordered by `Id` ascending so pages are stable across requests.
+
+```bash
+curl "http://localhost:5002/api/services?skip=100&take=50" \
+  -H "Authorization: Bearer <token>"
+```
+
 ---
 
 ### Authentication (`/api/auth`) — Public
@@ -237,10 +253,11 @@ curl -X POST http://localhost:5002/api/services/create \
 
 **Response (201):** Created service object with assigned `id`.
 
-| Status | Meaning |
-|--------|---------|
-| 201 | Created |
-| 409 | Duplicate title or description |
+| Status | Meaning | Error code |
+|--------|---------|------------|
+| 201 | Created | — |
+| 409 | A service with the same `title` already exists | `DUPLICATE_SERVICE_TITLE` |
+| 409 | A service with the same `description` already exists | `DUPLICATE_SERVICE_DESCRIPTION` |
 
 **Validation rules:**
 - `title`: required, 3–100 chars, alphanumeric/spaces/hyphens/underscores only
@@ -277,11 +294,12 @@ curl -X PUT http://localhost:5002/api/services/update/1 \
 
 **Response (200):** Updated service object.
 
-| Status | Meaning |
-|--------|---------|
-| 200 | Updated |
-| 404 | Service not found |
-| 409 | Duplicate title or description (excluding current service) |
+| Status | Meaning | Error code |
+|--------|---------|------------|
+| 200 | Updated | — |
+| 404 | Service not found | — |
+| 409 | Another service already has this `title` | `DUPLICATE_SERVICE_TITLE` |
+| 409 | Another service already has this `description` | `DUPLICATE_SERVICE_DESCRIPTION` |
 
 #### DELETE `/api/services/{id}`
 
@@ -939,34 +957,9 @@ docker run -p 5000:80 \
 
 The project has two test projects:
 
-### Integration Tests (`RukuServiceApi.IntegrationTests`)
-
-HTTP-level tests that hit the running API at `http://localhost:5002`. Requires the API server to be running.
-
-For local Docker-based validation, use the included `docker-compose.local.yml` to run MariaDB and the API together:
-
-```bash
-docker compose -f docker-compose.local.yml up --build -d
-# Run integration tests against localhost:5002
-dotnet test RukuServiceApi.IntegrationTests
-docker compose -f docker-compose.local.yml down -v
-```
-
-This is a local test harness only; full production deployment can still use the existing compose stack in `jk-portfolio-deploy`.
-
-```bash
-# Start the API first
-dotnet run --project RukuServiceApi &
-
-# Run integration tests
-dotnet test RukuServiceApi.IntegrationTests
-```
-
-Covers all controllers: Auth, Services, Availabilities, Schedules, Users, Email, UploadImage, Monitoring, and Health Checks.
-
 ### Unit Tests (`RukuServiceApi.UnitTests`)
 
-Isolated tests with mocked dependencies. No running server required.
+Isolated tests with mocked dependencies. **No running server required.**
 
 ```bash
 dotnet test RukuServiceApi.UnitTests
@@ -974,11 +967,64 @@ dotnet test RukuServiceApi.UnitTests
 
 Covers: validators (CreateServiceRequest, UpdateServiceRequest, Contact, PricingPlan, CreateUserRequest, UpdateUserRole), services (AuthService, FileUploadService), middleware (SecurityHeaders, GlobalException, Validation), and health checks (Memory, EmailService).
 
+### Integration Tests (`RukuServiceApi.IntegrationTests`)
+
+HTTP-level tests that exercise every controller (Auth, Services, Availabilities, Schedules, Users, Email, UploadImage, Monitoring, Health Checks) against a running API.
+
+**Test harness assumptions** (hardcoded in [`TestHelpers.cs`](RukuServiceApi.IntegrationTests/TestHelpers.cs)):
+
+| Setting | Value | How to satisfy |
+|---------|-------|----------------|
+| Base URL | `http://localhost:5002` | API must listen on this port |
+| Admin login | `admin@rukuit.com` / `admin-uid-12345` | Seeded automatically in `Development` |
+| Owner login | `owner@rukuit.com` / `owner-uid-67890` | Seeded automatically in `Development` |
+
+There are no test-side env vars to configure — the project just needs an API on `:5002` with the dev seed users present, which means **`ASPNETCORE_ENVIRONMENT=Development`** (see [`DatabaseSeeder.SeedDevUsersAsync`](RukuServiceApi/Services/DatabaseSeeder.cs)).
+
+Tests run in parallel at the method level (per `MSTestSettings.cs`).
+
+#### Option A — Run against a locally launched API
+
+```bash
+# 1. Start the API (Development env auto-seeds the dev users)
+dotnet run --project RukuServiceApi &
+
+# 2. Run the tests
+dotnet test RukuServiceApi.IntegrationTests
+```
+
+#### Option B — Run against the local Docker harness
+
+Uses [`docker-compose.local.yml`](docker-compose.local.yml) to bring up MariaDB + the API together. See the [Local Docker Test Harness](#local-docker-test-harness) section above for the full flow.
+
+#### Useful flags
+
+```bash
+# Run a single test class
+dotnet test RukuServiceApi.IntegrationTests \
+  --filter "FullyQualifiedName~ServicesControllerTests"
+
+# Run a single test method
+dotnet test RukuServiceApi.IntegrationTests \
+  --filter "FullyQualifiedName~ServicesControllerTests.GetServices_ReturnsOk"
+
+# Run tests by category (if [TestCategory] attributes are used)
+dotnet test RukuServiceApi.IntegrationTests --filter "TestCategory=Smoke"
+
+# Re-run on file change (TDD loop) — keep the API running in another terminal
+dotnet watch test --project RukuServiceApi.UnitTests
+
+# Increase verbosity for failures
+dotnet test RukuServiceApi.IntegrationTests --logger "console;verbosity=detailed"
+```
+
 ### Run All Tests
 
 ```bash
 dotnet test
 ```
+
+> The solution-level `dotnet test` runs unit + integration tests together, so the API still needs to be reachable on `:5002` or the integration tests will fail.
 
 ## Database Management
 

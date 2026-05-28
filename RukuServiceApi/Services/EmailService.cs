@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
@@ -7,20 +8,20 @@ namespace RukuServiceApi.Services;
 
 public class EmailService
 {
-    private readonly HttpClient _httpClient;
+    private const string HttpClientName = "Resend";
+
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly EmailSettings _settings;
     private readonly ILogger<EmailService> _logger;
 
-    public EmailService(IOptions<EmailSettings> emailSettings, ILogger<EmailService> logger)
+    public EmailService(
+        IHttpClientFactory httpClientFactory,
+        IOptions<EmailSettings> emailSettings,
+        ILogger<EmailService> logger)
     {
+        _httpClientFactory = httpClientFactory;
         _settings = emailSettings.Value;
         _logger = logger;
-
-        _httpClient = new HttpClient();
-        _httpClient.DefaultRequestHeaders.Add(
-            "Authorization",
-            $"Bearer {_settings.ResendApiKey}"
-        );
     }
 
     public async Task<bool> SendEmailAsync(string subject, string body)
@@ -33,16 +34,20 @@ public class EmailService
             html = body
         };
 
-        var content = new StringContent(
+        using var content = new StringContent(
             JsonSerializer.Serialize(payload),
             Encoding.UTF8,
             "application/json"
         );
 
-        var response = await _httpClient.PostAsync(
-            "https://api.resend.com/emails",
-            content
-        );
+        var httpClient = _httpClientFactory.CreateClient(HttpClientName);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.resend.com/emails")
+        {
+            Content = content,
+        };
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ResendApiKey);
+
+        using var response = await httpClient.SendAsync(request);
 
         if (!response.IsSuccessStatusCode)
         {

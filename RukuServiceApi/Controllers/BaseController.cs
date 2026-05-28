@@ -14,15 +14,30 @@ public abstract class BaseController<TEntity, TContext>(TContext context, ILogge
     protected readonly TContext _context = context;
     protected readonly ILogger _logger = logger;
 
+    protected const int DefaultPageSize = 100;
+    protected const int MaxPageSize = 500;
+
     [HttpGet]
-    public virtual async Task<ActionResult<IEnumerable<TEntity>>> GetAll()
+    public virtual async Task<ActionResult<IEnumerable<TEntity>>> GetAll(
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = DefaultPageSize)
     {
         try
         {
-            var entities = await _context.Set<TEntity>().ToListAsync();
+            if (skip < 0) skip = 0;
+            if (take <= 0 || take > MaxPageSize) take = DefaultPageSize;
+
+            var entities = await _context.Set<TEntity>()
+                .AsNoTracking()
+                .OrderBy(e => EF.Property<int>(e, "Id"))
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
             _logger.LogInformation(
-                "Fetched {Count} entities from the database.",
-                entities.Count
+                "Fetched {Count} entities from the database (skip={Skip}, take={Take}).",
+                entities.Count,
+                skip,
+                take
             );
             return Ok(entities);
         }

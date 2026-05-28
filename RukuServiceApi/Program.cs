@@ -17,10 +17,8 @@ using System.Threading.RateLimiting;
 // Load environment variables from .env.local if it exists
 static void LoadEnvFile()
 {
-    var envFile = Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".env.local");
-    envFile = Path.GetFullPath(envFile);
-
-    if (!File.Exists(envFile))
+    var envFile = FindEnvFile();
+    if (envFile == null)
     {
         return;
     }
@@ -57,6 +55,20 @@ static void LoadEnvFile()
             }
         }
     }
+}
+
+static string? FindEnvFile()
+{
+    var dir = new DirectoryInfo(AppContext.BaseDirectory);
+    for (var i = 0; i < 8 && dir != null; i++, dir = dir.Parent)
+    {
+        var candidate = Path.Combine(dir.FullName, ".env.local");
+        if (File.Exists(candidate))
+        {
+            return candidate;
+        }
+    }
+    return null;
 }
 
 LoadEnvFile();

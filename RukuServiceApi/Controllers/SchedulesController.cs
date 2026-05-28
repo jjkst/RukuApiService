@@ -20,16 +20,25 @@ public class SchedulesController(
         User.IsInRole(nameof(UserRole.Admin)) || User.IsInRole(nameof(UserRole.Owner));
 
     [HttpGet]
-    public override async Task<ActionResult<IEnumerable<Schedule>>> GetAll()
+    public override async Task<ActionResult<IEnumerable<Schedule>>> GetAll(
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = DefaultPageSize)
     {
         if (IsPrivileged)
-            return await base.GetAll();
+            return await base.GetAll(skip, take);
 
         if (string.IsNullOrEmpty(CurrentUid))
             return Ok(Array.Empty<Schedule>());
 
+        if (skip < 0) skip = 0;
+        if (take <= 0 || take > MaxPageSize) take = DefaultPageSize;
+
         var schedules = await _context.Schedules
+            .AsNoTracking()
             .Where(s => s.Uid == CurrentUid)
+            .OrderBy(s => s.Id)
+            .Skip(skip)
+            .Take(take)
             .ToListAsync();
         return Ok(schedules);
     }
@@ -66,7 +75,6 @@ public class SchedulesController(
             return NotFound($"Schedule with ID {id} not found.");
 
         entity.Uid = existing.Uid;
-        _context.Entry(existing).State = EntityState.Detached;
         return await base.Update(id, entity);
     }
 

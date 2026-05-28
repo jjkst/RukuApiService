@@ -244,9 +244,12 @@ public class AuthController(
                     var emails = await emailsResponse.Content.ReadFromJsonAsync<JsonElement>();
                     foreach (var e in emails.EnumerateArray())
                     {
-                        if (e.TryGetProperty("primary", out var primary) && primary.GetBoolean())
+                        if (e.TryGetProperty("primary", out var primary)
+                            && primary.ValueKind == JsonValueKind.True
+                            && e.TryGetProperty("email", out var emailEntry)
+                            && emailEntry.ValueKind == JsonValueKind.String)
                         {
-                            email = e.GetProperty("email").GetString();
+                            email = emailEntry.GetString();
                             break;
                         }
                     }
@@ -258,7 +261,12 @@ public class AuthController(
                 return BadRequest(new { message = "Could not retrieve email from GitHub" });
             }
 
-            var githubId = ghUser.GetProperty("id").GetInt64().ToString();
+            if (!ghUser.TryGetProperty("id", out var idProp) || idProp.ValueKind != JsonValueKind.Number)
+            {
+                _logger.LogWarning("GitHub /user response missing numeric id field");
+                return BadRequest(new { message = "Invalid GitHub user payload" });
+            }
+            var githubId = idProp.GetInt64().ToString();
             var displayName = ghUser.TryGetProperty("name", out var nameProp) && nameProp.ValueKind != JsonValueKind.Null
                 ? nameProp.GetString() ?? email
                 : email;
