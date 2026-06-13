@@ -85,6 +85,7 @@ public sealed class EmailServiceHealthCheckTests
         var result = await healthCheck.CheckHealthAsync(context);
 
         result.Data.Should().ContainKey("recipientEmail");
+        result.Data.Should().ContainKey("resendApiKey");
         result.Data.Should().ContainKey("timestamp");
     }
 }

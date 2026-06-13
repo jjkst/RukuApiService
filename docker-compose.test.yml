@@ -1,0 +1,67 @@
+# Integration test environment — self-contained stack for running RukuServiceApi.IntegrationTests
+# Tests connect to http://localhost:5002 (host port mapped to container port 80)
+#
+# Usage: ./test-integration.sh
+# Or manually:
+#   docker compose -f docker-compose.test.yml up --build -d
+#   dotnet test RukuServiceApi.IntegrationTests
+#   docker compose -f docker-compose.test.yml down
+
+services:
+  db-test:
+    image: mariadb:10.11
+    container_name: ruku_test_db
+    environment:
+      MARIADB_ROOT_PASSWORD: test_password
+      MARIADB_DATABASE: RukuServiceApi
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
+  migrate-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrate
+    container_name: ruku_test_migrate
+    environment:
+      CONNECTIONSTRING: "Server=db-test;Database=RukuServiceApi;User=root;Password=test_password;"
+      JWT_SECRET_KEY: "test-jwt-secret-key-minimum-32-chars!!"
+      JWT_ISSUER: "RukuServiceApi"
+      JWT_AUDIENCE: "RukuServiceApiUsers"
+      JWT_EXPIRATION_MINUTES: "60"
+      RESEND_API_KEY: "test_key"
+      RECIPIENT_EMAIL: "test@test.com"
+    depends_on:
+      db-test:
+        condition: service_healthy
+    restart: "no"
+
+  api-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: api
+    container_name: ruku_test_api
+    ports:
+      - "5002:80"
+    environment:
+      ASPNETCORE_URLS: "http://+:80"
+      ASPNETCORE_ENVIRONMENT: "Development"
+      CONNECTIONSTRING: "Server=db-test;Database=RukuServiceApi;User=root;Password=test_password;"
+      JWT_SECRET_KEY: "test-jwt-secret-key-minimum-32-chars!!"
+      JWT_ISSUER: "RukuServiceApi"
+      JWT_AUDIENCE: "RukuServiceApiUsers"
+      JWT_EXPIRATION_MINUTES: "60"
+      RESEND_API_KEY: "test_key"
+      RECIPIENT_EMAIL: "test@test.com"
+      ADMIN_EMAIL: "admin@rukuit.com"
+      ADMIN_UID: "admin-uid-12345"
+      ADMIN_DISPLAY_NAME: "Admin"
+      ALLOWED_HOSTS: "localhost"
+      AllowedOrigins: "http://localhost:5002"
+    depends_on:
+      migrate-test:
+        condition: service_completed_successfully

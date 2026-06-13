@@ -76,6 +76,7 @@ public class EmailServiceHealthCheck(
             var data = new Dictionary<string, object>
             {
                 { "recipientEmail", settings.RecipientEmail },
+                { "resendApiKey", settings.ResendApiKey },
                 { "timestamp", DateTime.UtcNow },
             };
 

@@ -32,7 +32,7 @@ RESTful API backend to manage services, availability, scheduling, authentication
 ### Project Structure
 
 ```
-APICSharpEntityFrameworkMySql/
+RukuApiServices/
 ├── RukuServiceApi/                     # Main API project
 │   ├── Controllers/                    # API controllers
 │   │   ├── BaseController.cs           # Generic CRUD (GetAll, GetById, Create, Update, Delete)
@@ -955,17 +955,55 @@ docker run -p 5000:80 \
 
 ## Testing
 
-The project has two test projects:
+Two test projects using **MSTest**. Unit tests need no running server; integration tests hit the live API over HTTP.
 
 ### Unit Tests (`RukuServiceApi.UnitTests`)
 
-Isolated tests with mocked dependencies. **No running server required.**
+Isolated — all dependencies mocked. Run them without any infrastructure:
 
 ```bash
 dotnet test RukuServiceApi.UnitTests
 ```
 
-Covers: validators (CreateServiceRequest, UpdateServiceRequest, Contact, PricingPlan, CreateUserRequest, UpdateUserRole), services (AuthService, FileUploadService), middleware (SecurityHeaders, GlobalException, Validation), and health checks (Memory, EmailService).
+| Area | Test Files |
+|------|-----------|
+| **Validators** | `CreateServiceRequestValidatorTests`, `UpdateServiceRequestValidatorTests`, `ContactRequestValidatorTests`, `PricingPlanValidatorTests`, `CreateUserRequestValidatorTests`, `UpdateUserRoleRequestValidatorTests` |
+| **Services** | `AuthServiceTests` (JWT generation/validation), `FileUploadServiceTests` (type allowlist, size limits, path traversal) |
+| **Middleware** | `SecurityHeadersMiddlewareTests`, `GlobalExceptionMiddlewareTests`, `ValidationMiddlewareTests` |
+| **Health Checks** | `MemoryHealthCheckTests`, `EmailServiceHealthCheckTests` |
+
+### Integration Tests (`RukuServiceApi.IntegrationTests`)
+
+HTTP-level tests that call the live API at `http://localhost:5002`. Cover the full request pipeline — auth, routing, validation, database round-trips, and error responses.
+
+| Test File | What It Covers |
+|-----------|---------------|
+| `AuthControllerTests` | Login (valid/invalid credentials), registration, duplicate user |
+| `ServicesControllerTests` | CRUD, role-based access, duplicate detection, validation errors |
+| `PublicServicesControllerTests` | Public read-only access, no-auth required |
+| `AvailabilitiesControllerTests` | CRUD, date validation, overlap detection, timeslot queries |
+| `SchedulesControllerTests` | Booking creation, update, delete |
+| `UsersControllerTests` | User listing, role updates (Admin-only), delete |
+| `EmailControllerTests` | Contact form send, settings endpoint |
+| `UploadImageControllerTests` | File upload, type/size/path-traversal rejection |
+| `MonitoringControllerTests` | System info, performance metrics, log retrieval, GC endpoint |
+| `HealthCheckTests` | `/health`, `/health/ready`, `/health/live` |
+
+#### Option A — Self-contained (recommended, requires Docker)
+
+Spins up MariaDB and the API in Docker, runs all tests, then tears everything down:
+
+```bash
+./test-integration.sh
+```
+
+#### Option B — Against a locally running server
+
+If you already have MariaDB and the API running (`dotnet run --project RukuServiceApi`):
+
+```bash
+dotnet test RukuServiceApi.IntegrationTests
+```
 
 ### Integration Tests (`RukuServiceApi.IntegrationTests`)
 

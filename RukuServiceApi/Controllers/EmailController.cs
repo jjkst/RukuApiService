@@ -1,29 +1,23 @@
-using System.Net;
-using System.Net.Mail;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using RukuServiceApi.Models;
 using Microsoft.AspNetCore.RateLimiting;
-using System.Threading.RateLimiting;
 using RukuServiceApi.Services;
 
 namespace RukuServiceApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class EmailController(EmailService emailService) : ControllerBase
+public class EmailController(EmailService emailService, IOptions<EmailSettings> emailSettings) : ControllerBase
 {
-
     [HttpPost("send")]
-    [AllowAnonymous]
+    [Authorize(Policy = AuthorizationPolicies.AuthenticatedUser)]
     [EnableRateLimiting("EmailLimit")]
     public async Task<IActionResult> SendEmail([FromBody] Contact contact)
     {
         if (string.IsNullOrWhiteSpace(contact.Email) || string.IsNullOrWhiteSpace(contact.Questions))
-        {
             return BadRequest(new { message = "Email and question are required" });
-        }
 
         try
         {
@@ -40,11 +34,24 @@ public class EmailController(EmailService emailService) : ControllerBase
             if (success)
                 return Ok(new { message = "Email sent successfully" });
             else
-                return StatusCode(500, new { message = "Failed to send email" });
+                return BadRequest(new { message = "Failed to send email. Check email service configuration." });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new { message = ex.Message });
+            return BadRequest(new { message = ex.Message });
         }
+    }
+
+    [HttpGet("settings")]
+    [Authorize(Policy = AuthorizationPolicies.AdminOnly)]
+    public IActionResult GetEmailSettings()
+    {
+        var settings = emailSettings.Value;
+        return Ok(new
+        {
+            recipientEmail = settings.RecipientEmail,
+            apiConfigured = !string.IsNullOrWhiteSpace(settings.ResendApiKey)
+                            && settings.ResendApiKey != "test_key",
+        });
     }
 }

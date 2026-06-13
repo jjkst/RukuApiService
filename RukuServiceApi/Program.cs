@@ -279,8 +279,8 @@ builder
 
 var app = builder.Build();
 
-// Configure URLs - use port 5002 for development and expose all interfaces so Docker port mapping works
-if (app.Environment.IsDevelopment())
+// Configure URLs - use port 5002 for local development (not in Docker where ASPNETCORE_URLS is set)
+if (app.Environment.IsDevelopment() && string.IsNullOrEmpty(Environment.GetEnvironmentVariable("ASPNETCORE_URLS")))
 {
     app.Urls.Add("http://0.0.0.0:5002");
 }

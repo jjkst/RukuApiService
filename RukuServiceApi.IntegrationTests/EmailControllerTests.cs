@@ -28,7 +28,7 @@ public sealed class EmailControllerTests
         var content = await response.Content.ReadAsStringAsync();
         var settings = JsonDocument.Parse(content);
 
-        Assert.IsTrue(settings.RootElement.TryGetProperty("smtpServer", out _));
+        Assert.IsTrue(settings.RootElement.TryGetProperty("recipientEmail", out _));
     }
 
     [TestMethod]
