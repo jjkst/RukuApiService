@@ -68,7 +68,7 @@ public sealed class EmailControllerTests
     }
 
     [TestMethod]
-    public async Task SendEmail_WithoutAuth_ShouldReturnUnauthorized()
+    public async Task SendEmail_WithoutAuth_ShouldBeAllowed()
     {
         var contact = new
         {
@@ -81,6 +81,10 @@ public sealed class EmailControllerTests
         var content = TestHelpers.CreateJsonContent(contact);
         var response = await Client.PostAsync("/api/email/send", content);
 
-        Assert.AreEqual(System.Net.HttpStatusCode.Unauthorized, response.StatusCode);
+        // Anonymous access is allowed; result depends on email configuration
+        Assert.IsTrue(
+            response.StatusCode == System.Net.HttpStatusCode.OK
+                || response.StatusCode == System.Net.HttpStatusCode.BadRequest
+        );
     }
 }

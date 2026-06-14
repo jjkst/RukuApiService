@@ -12,7 +12,7 @@ namespace RukuServiceApi.Controllers;
 public class EmailController(EmailService emailService, IOptions<EmailSettings> emailSettings) : ControllerBase
 {
     [HttpPost("send")]
-    [Authorize(Policy = AuthorizationPolicies.AuthenticatedUser)]
+    [AllowAnonymous]
     [EnableRateLimiting("EmailLimit")]
     public async Task<IActionResult> SendEmail([FromBody] Contact contact)
     {
