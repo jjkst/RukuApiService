@@ -8,7 +8,7 @@ namespace RukuServiceApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Policy = AuthorizationPolicies.AdminOrOwner)] // Only admins and owners can upload files
+[Authorize(Policy = AuthorizationPolicies.AuthenticatedUser)]
 public class UploadImageController(
     IFileUploadService fileUploadService,
     IOptions<FileUploadSettings> fileUploadSettings,
